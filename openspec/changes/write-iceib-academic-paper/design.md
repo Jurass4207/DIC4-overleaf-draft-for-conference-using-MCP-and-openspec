@@ -107,3 +107,4 @@ $$
 1. **LaTeX 本地語法檢驗**：檢查所有環境閉合（`\begin` / `\end`）與 BibTeX 鍵值對齊。
 2. **OpenSpec 規格驗證**：執行 `openspec validate write-iceib-academic-paper --strict`，確保 Delta 規範 100% 合規。
 3. **交付物歸檔**：將 Overleaf 所需檔案集中於 `overleaf/` 目錄，提供清晰之一鍵匯入教學指引。
+

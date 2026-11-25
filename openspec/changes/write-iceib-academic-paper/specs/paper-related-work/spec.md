@@ -26,3 +26,4 @@
 #### Scenario: Scientific Gap Formulation
 - **WHEN** 閱讀文獻總結段落
 - **THEN** 必須明確界定 DietSense 填補之學術空白，凸顯本專案之獨特性
+

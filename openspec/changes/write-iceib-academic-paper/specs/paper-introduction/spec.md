@@ -33,3 +33,4 @@
 #### Scenario: Clear Contributions Statement
 - **WHEN** 審查論文研究貢獻
 - **THEN** 必須清楚條列四項具備可交付性與可重現性之研究成果，且不包含主觀誇大形容詞
+

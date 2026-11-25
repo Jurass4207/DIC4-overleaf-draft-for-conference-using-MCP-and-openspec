@@ -19,3 +19,4 @@
 #### Scenario: Critical Self-Assessment
 - **WHEN** 檢視未來工作展望
 - **THEN** 必須包含對研究邊界之嚴謹反思（Zen），展示具前瞻性之學術視野
+

@@ -33,3 +33,4 @@
 #### Scenario: Safety Interception Mechanism
 - **WHEN** 系統偵測到過度節食或特殊疾病患者時
 - **THEN** 論文必須證明代理人架構具有硬性規則層阻斷生成危險減重建議，確保使用者生理安全
+

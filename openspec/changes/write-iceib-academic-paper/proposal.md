@@ -39,3 +39,4 @@
 - 產出專案根目錄之 Overleaf 專案目錄 `overleaf/`，內含符合 IEEEtran 樣式之 `main.tex`、BibTeX `references.bib` 與編譯說明文檔。
 - 建立 OpenSpec 論文規格檔案庫，支援後續論文審稿意見修改與章節版本同步管理。
 - 產出對齊資訊圖表之輔助研討文件，包含 A2Z 研究架構映射、Deep Research 三大核心問題與八大模組完整演算法規格。
+

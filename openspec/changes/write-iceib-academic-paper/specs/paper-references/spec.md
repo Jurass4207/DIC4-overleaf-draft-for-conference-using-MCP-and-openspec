@@ -19,3 +19,4 @@
 #### Scenario: Literature Quality Verification
 - **WHEN** 審查文獻年代與權威性
 - **THEN** 至少須涵蓋 Teixeira (2025), Hall (2012), Zeevi (2015), Cheng (2024), Poslusna (2009), Ludwig (2018), Helander (2014) 等經典與最新研究
+

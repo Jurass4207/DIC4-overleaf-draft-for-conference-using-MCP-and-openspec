@@ -19,3 +19,4 @@
 #### Scenario: Standard Index Terms Inclusion
 - **WHEN** 檢查 Index Terms 列表
 - **THEN** 必須依序包含 Conversational AI, domain-specific AI agents, dietary assessment, large language models, retrieval-augmented generation, uncertainty quantification, personalized weight management, safety-aware systems
+
