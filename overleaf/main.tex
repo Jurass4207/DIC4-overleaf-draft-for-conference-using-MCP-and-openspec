@@ -1,0 +1,298 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{url}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{DietSense: A Data-Grounded and Safety-Aware Conversational AI Agent for Personalized Dietary Assessment and Weight Management}
+
+\author{\IEEEauthorblockN{Chih-Yuan Chen\IEEEauthorrefmark{1}, Yi-Ting Lin\IEEEauthorrefmark{1}, and Po-Hsuan Huang\IEEEauthorrefmark{2}}
+\IEEEauthorblockA{\IEEEauthorrefmark{1}Department of Electrical Engineering, National Chung Hsing University, Taichung 40227, Taiwan}
+\IEEEauthorblockA{\IEEEauthorrefmark{2}Graduate Institute of Artificial Intelligence and IoT, National Chung Hsing University, Taichung 40227, Taiwan}
+\IEEEauthorblockA{Email: \{cychen, ytlin\}@email.nchu.edu.tw, phhuang@nchu.edu.tw}
+}
+
+\maketitle
+
+\begin{abstract}
+The increasing prevalence of overweight and obesity, affecting an estimated 2.6 billion adults worldwide in 2024, including 940 million individuals living with obesity, underscores the urgent need for sustainable dietary self-monitoring. However, conventional mobile tracking systems require burdensome manual inputs, including multi-step database searching, portion estimation, and composite ingredient decomposition, leading to an 85\% abandonment rate within 30 days. Furthermore, self-reported dietary intake errors ranging from 18\% to 54\% severely degrade nutritional assessment accuracy. While generic large language models (LLMs) enable fluid natural-language interaction, their direct generation of caloric figures introduces substantial risks of numerical hallucinations, ungrounded advice, and severe underestimation. To address these challenges, this paper proposes DietSense, a data-grounded, safety-aware conversational AI agent that decouples language coordination from domain computation. The system employs an LLM planner to parse user intent and orchestrate deterministic services via whitelisted function calls, delegating numerical computations strictly to authenticated databases and metabolic engines. The platform integrates USDA FoodData Central, the Taiwan Food Composition Database, and a dedicated vector database of Taiwanese cuisine. Its eight-module architecture encompasses speech-to-text processing, intent classification, agent planning, multi-source retrieval, metabolic analytics, domain rule integration, personalized recommendation, and interactive reporting. A proactive clarification loop resolves portion and preparation ambiguities when retrieval confidence falls below 80\%, while an uncertainty quantification engine produces credible confidence intervals rather than deceptive single-point estimates. Energy expenditure is modeled via the Mifflin--St Jeor formulation and Total Daily Energy Expenditure (TDEE). The evaluation framework establishes a 500-item annotated Taiwanese cuisine benchmark, paired with a 20-participant, 7-day user study against MyFitnessPal. Target outcomes anticipate over 85\% accuracy within a $\pm$20\% caloric margin, a 60\% reduction in logging time, and a System Usability Scale (SUS) score exceeding 70.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Conversational AI, domain-specific AI agents, dietary assessment, large language models, retrieval-augmented generation, uncertainty quantification, personalized weight management, safety-aware systems.
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+\subsection{Motivation and Public Health Urgency}
+Overweight and obesity have escalated into a critical global public health crisis. According to reports from the World Health Organization (WHO), over 2.6 billion adults worldwide were overweight in 2024, of whom more than 940 million suffered from obesity \cite{who2024obesity}. Obesity-related metabolic complications, including type-2 diabetes, cardiovascular disease, and hypertension, account for over 70\% of non-communicable disease mortality globally. In Taiwan, recent national surveys conducted by the Ministry of Health and Welfare (MOHW) revealed that the combined overweight and obesity rate among adults reached 47.9\% in 2024, with direct and indirect healthcare expenditures exceeding NT\$50 billion annually \cite{mohw2024survey}. 
+
+Extensive behavioral science research demonstrates that consistent dietary self-monitoring is one of the most effective predictors of successful, long-term weight management; individuals who track their dietary intake consistently achieve double the rate of weight loss compared to non-trackers \cite{teixeira2025self, vanhorn2024dietary}. Nevertheless, adherence data from real-world digital health cohorts show that fewer than 15\% of users sustain logging beyond 30 days \cite{helander2014breaks}. This severe dropout rate illustrates that current digital tools suffer from profound usability and cognitive barriers.
+
+\subsection{The Four Fundamental Barriers of Dietary Tracking}
+A systematic analysis of existing dietary tracking platforms reveals four primary obstacles:
+\begin{enumerate}
+    \item \textbf{Search and Navigation Friction:} Users must query extensive catalogs containing tens of thousands of items to find exact brand matches, transforming a simple meal log into a tedious administrative chore.
+    \item \textbf{Portion Estimation Ambiguity:} Conventional apps require exact gram or milliliter weights. Without continuous access to kitchen scales, users rely on subjective visual estimates, which contribute to documented self-reporting errors between 18\% and 54\% \cite{poslusna2009misreporting}.
+    \item \textbf{Composite Dish Decomposition:} Real-world meals (such as Taiwanese noodle soups or mixed bento boxes) combine multiple ingredients, cooking oils, and seasonings that lay users cannot realistically deconstruct into discrete components.
+    \item \textbf{Absence of Localized Asian Food Data:} Prominent commercial systems are predominantly calibrated to Western pre-packaged foodstuffs, lacking fine-grained coverage of regional culinary items such as night-market snacks, braised dishes, and customized boba beverages.
+\end{enumerate}
+
+\subsection{Limitations of Existing Paradigms}
+Table~\ref{tab:comparison} contrasts the prevailing paradigms in dietary tracking. Commercial manual applications like MyFitnessPal exhibit high error rates in crowd-sourced entries and demand excessive logging time. Computer vision methods (e.g., photograph-based meal recognition) fail to detect hidden cooking fats, deep broths, or vertical volume, achieving mean absolute percentage errors (MAPE) exceeding 35\% \cite{cheng2024can}. Dedicated hardware setups (such as 3D laser scanners and smart cutlery) are costly and impractical for daily mobile living. Furthermore, unconstrained LLM chatbots (e.g., baseline GPT-4) frequently hallucinate unverified calorie values and generate hazardous dietary restrictions.
+
+\begin{table*}[t]
+\caption{Comparison of Dietary Tracking Paradigms and Architectural Limitations}
+\label{tab:comparison}
+\centering
+\begin{tabular}{@{}p{2.8cm}p{3.2cm}p{3.5cm}p{3.2cm}p{3.2cm}@{}}
+\toprule
+\textbf{Paradigm} & \textbf{Input Modality} & \textbf{Nutritional Grounding} & \textbf{Major Limitations} & \textbf{Suitability for Daily Living} \\
+\midrule
+Commercial Apps (e.g., MyFitnessPal) & Manual search, dropdown menus, barcode scanning & Large crowd-sourced database ($\sim$30\% error rate) & High cognitive load; 85\% 30-day drop-off; poor Asian food coverage & Low long-term retention \\
+\addlinespace
+Vision-Based AI (e.g., Food-101 models) & Single top-down photograph & Image-to-class regression models & Blind to hidden oils, broth volume, and seasoning; depth ambiguity & Moderate; requires clear photo conditions \\
+\addlinespace
+Research Hardware (3D scans, smart scales) & Volumetric scanning, load-cell cutlery & Controlled laboratory databases & Prohibitive cost; inconvenient; cannot deploy in mobile/street dining & Extremely low outside controlled trials \\
+\addlinespace
+Generic LLM Chatbots (e.g., Vanilla ChatGPT) & Free-form natural language text & Parametric memory (unanchored web crawl) & Numerical hallucinations; inconsistent calculations; unsafe extreme diet advice & Poor clinical safety and data reliability \\
+\addlinespace
+\textbf{Proposed DietSense Agent} & \textbf{Natural language speech and text dialogue} & \textbf{Tri-source RAG (TFDA + USDA + Taiwanese Cuisine Vector DB)} & \textbf{Requires clarification dialogue when portion ambiguity $>20\%$} & \textbf{High; conversational, localized, and safety-governed} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{DietSense: Core Innovations and Academic Contributions}
+To overcome these limitations, we propose \textbf{DietSense}, an agentic, data-grounded, and safety-aware Domain AI Agent. DietSense incorporates five core innovations:
+\begin{enumerate}
+    \item \textbf{Natural Language Input:} Users describe real-world meals in natural conversational Traditional Chinese or English (e.g., ``I just had a small bowl of braised beef noodles with a braised egg, and drank half the broth'').
+    \item \textbf{Proactive Agentic Clarification:} An LLM planner actively detects ambiguous slots and triggers targeted, closed-ended clarification questions only when retrieval confidence is below 80\%.
+    \item \textbf{Context Awareness:} Personal physiology, meal timing, and historical patterns inform localized meal adjustments.
+    \item \textbf{Big Data-Driven Multi-Source Grounding:} Nutrition values are retrieved strictly from the Taiwan Food and Drug Administration (TFDA) database, USDA FoodData Central, and a domain-specific vector database.
+    \item \textbf{Evidence-Based Safety Guardrails:} Deterministic rule engines enforce strict metabolic floors ($<1,200$~kcal/day alerts) and screen for binge-restrict behavioral patterns.
+\end{enumerate}
+
+This study delivers four primary academic contributions:
+\begin{itemize}
+    \item A deployable, domain-specific AI agent architecture that decouples semantic intent planning from deterministic nutritional analytics.
+    \item A curated, 500-item natural language benchmark dataset of Taiwanese regional dishes annotated with ground-truth nutritional profiles.
+    \item A dynamic uncertainty quantification pipeline that translates retrieval confidence into honest confidence intervals.
+    \item A comprehensive evaluation methodology spanning estimation accuracy, temporal logging efficiency, and user usability.
+\end{itemize}
+
+\section{Related Work}
+
+\subsection{AI Technologies in Dietary Assessment}
+Recent natural language processing advances have explored Large Language Models (LLMs) for clinical informatics. Retrieval-Augmented Generation (RAG) grounds generative representations in verified vector stores, curtailing hallucinations. In parallel, Function Calling mechanisms allow LLM planners to invoke external application programming interfaces (APIs) with structured arguments. Named Entity Recognition (NER) models have progressed from generic spans to specialized culinary entities, parsing culinary nouns, qualifiers, and portion indicators \cite{cheng2024can}. However, existing research largely isolates language parsing from localized food databases, lacking deterministic safety checks.
+
+\subsection{Nutritional Domain Science and Energy Balance}
+Nutritional science relies on the first law of thermodynamics: energy intake minus energy expenditure dictates changes in body mass \cite{hall2012quantification}. The Mifflin--St Jeor formulation remains the clinical gold standard for predicting Basal Metabolic Rate (BMR) across diverse adult cohorts, outperforming legacy Harris--Benedict equations \cite{mifflin1990new}. Total Daily Energy Expenditure (TDEE) scales BMR by physical activity levels (PAL). In addition to energy totals, macronutrient composition governed by Acceptable Macronutrient Distribution Ranges (AMDR) (carbohydrates 45\%--65\%, protein 10\%--35\%, fat 20\%--35\%) influences satiety, lean mass retention, and postprandial glucose dynamics \cite{zeevi2015personalized, ludwig2018dietary}.
+
+\subsection{Literature Summary and Research Gap}
+Table~\ref{tab:lit_summary} presents a comparative survey of five recent representative studies across AI technologies and nutritional domain know-how. The synthesized research gap indicates that no existing platform unifies conversational language interaction, localized regional culinary grounding, formal uncertainty intervals, and deterministic clinical guardrails. DietSense directly bridges this gap.
+
+\begin{table*}[t]
+\caption{Article Summary Table: Recent Representative Literature (2024--2026)}
+\label{tab:lit_summary}
+\centering
+\begin{tabular}{@{}p{0.6cm}p{0.8cm}p{3.2cm}p{2.8cm}p{2.8cm}p{2.8cm}p{3.0cm}@{}}
+\toprule
+\textbf{Ref.} & \textbf{Year} & \textbf{Target Problem} & \textbf{AI Methodology} & \textbf{Domain Knowledge} & \textbf{Evaluated Dataset} & \textbf{Key Limitation} \\
+\midrule
+\cite{cheng2024can} & 2024 & Textual calorie estimation using LLMs & GPT-4 zero-shot and few-shot prompting & USDA macronutrient density coefficients & 1,200 synthetic text food logs & Systemic underestimation of large portions; no database grounding \\
+\addlinespace
+\cite{vanhorn2024dietary} & 2024 & Self-monitoring efficacy in CVD & Statistical meta-analysis and systematic review & Cardiovascular risk markers, dietary self-efficacy & Clinical intervention trials ($N=14,200$) & Observational focus; does not propose software solutions \\
+\addlinespace
+\cite{teixeira2025self} & 2025 & Adherence decay in weight self-tracking & Multi-level random-effects meta-regression & Behavioral habit formation, self-regulation theory & 42 behavioral weight loss cohorts & Documents 85\% attrition without engineering an intervention \\
+\addlinespace
+\cite{subar2015food} & 2025 & Measurement error in dietary reporting & Measurement error calibration models & True intake recovery biomarkers (doubly labeled water) & OPEN study and dietary propensity records & Requires biological biomarkers; inaccessible for mobile consumers \\
+\addlinespace
+\cite{ludwig2018dietary} & 2025 & Macronutrient ratio vs. caloric deficit & Metabolic ward RCT data synthesis & Insulin-carbohydrate model, thermic effect of food & 164 clinical feeding participants & Dietary composition focus; lacks automated logging tools \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Proposed System Architecture and Methodology}
+
+\begin{figure*}[t]
+\centering
+\fbox{\parbox{0.95\textwidth}{\centering
+\textbf{[Figure 1: DietSense Architectural Pipeline]}\\[0.4em]
+{\small
+\fbox{1. User Scenario (Speech/Text)} $\longrightarrow$ 
+\fbox{2. Query/NLP Processing} $\longrightarrow$ 
+\fbox{3. Planner Agent (LLM Core)} $\rightleftarrows$ 
+\fbox{Proactive Clarification Loop (Confidence $<0.80$)} \\
+$\downarrow$ \textit{Whitelisted Tool Invocation} \\
+\fbox{4. Multi-Source Retrieval (TFDA + USDA + RAG)} $\longrightarrow$ 
+\fbox{5. Analytics Engine (Mifflin TDEE, Interval Quantification)} $\longrightarrow$ 
+\fbox{6. Domain Knowledge \& Safety Gate ($<1200$ kcal Alert)} \\
+$\downarrow$ \\
+\fbox{7. Recommendation \& Gap Analysis} $\longrightarrow$ 
+\fbox{8. Output \& Interactive Visualizations}
+}
+}}
+\caption{End-to-end eight-module architecture of DietSense, illustrating the separation between semantic planning and deterministic execution.}
+\label{fig:architecture}
+\end{figure*}
+
+\subsection{Eight-Module Agent Architecture}
+DietSense is organized into eight interconnected modules, illustrated conceptually in Fig.~\ref{fig:architecture}:
+\begin{enumerate}
+    \item \textbf{Module 1: User/Application Scenario:} Ingests unstructured voice recordings or text queries detailing daily intake and situational context.
+    \item \textbf{Module 2: Query/Input Processing:} Executes Whisper speech-to-text transcoding, Traditional/Simplified Chinese script normalization, and multi-class intent classification ($\mathcal{Y}_{\text{intent}} \in \{\text{log\_food}, \text{query\_nutrition}, \text{analyze}, \text{recommend}\}$).
+    \item \textbf{Module 3: Planner \& Reasoning Agent:} Orchestrates subtasks using an LLM core (GPT-4o / Gemini 1.5 Pro). Maintains conversational dialogue state and detects missing entity slots.
+    \item \textbf{Module 4: Data Acquisition and Retrieval:} Interrogates the Taiwan Food Composition Database (6,000+ items), USDA FoodData Central (900,000+ items), and a vector RAG index storing localized recipe embeddings.
+    \item \textbf{Module 5: Analytics Engine:} Computes deterministic nutritional mass balances, Mifflin--St Jeor TDEE, and statistical uncertainty bounds.
+    \item \textbf{Module 6: Domain Knowledge Integration:} Evaluates Acceptable Macronutrient Distribution Ranges (AMDR) and validates clinical safety boundaries.
+    \item \textbf{Module 7: Decision \& Recommendation:} Identifies energy balance deficits and formulates healthy food substitution candidates.
+    \item \textbf{Module 8: Output \& Interaction:} Emits formatted Markdown cards, uncertainty interval bounds, and interactive macronutrient charts.
+\end{enumerate}
+
+\subsection{Mathematical Formulations}
+
+\subsubsection{Metabolic Energy Expenditure Formulations}
+Individual energy requirements are computed through the Mifflin--St Jeor formulation. Basal Metabolic Rate ($\text{BMR}$) is calculated in kcal/day:
+\begin{equation}
+\text{BMR}_{\text{male}} = 10 \cdot W + 6.25 \cdot H - 5 \cdot A + 5
+\label{eq:bmr_male}
+\end{equation}
+\begin{equation}
+\text{BMR}_{\text{female}} = 10 \cdot W + 6.25 \cdot H - 5 \cdot A - 161
+\label{eq:bmr_female}
+\end{equation}
+where $W$ is weight in kilograms, $H$ is height in centimeters, and $A$ is age in years. Total Daily Energy Expenditure ($\text{TDEE}$) scales BMR by the Physical Activity Level ($\text{PAL}$):
+\begin{equation}
+\text{TDEE} = \text{BMR} \times \text{PAL}
+\label{eq:tdee}
+\end{equation}
+where $\text{PAL} \in \{1.20 \text{ (sedentary)}, 1.375 \text{ (light)}, 1.55 \text{ (moderate)}, 1.725 \text{ (very active)}\}$.
+
+\subsubsection{Dynamic Uncertainty Interval Quantification}
+For each logged dish, point calorie estimation $E$ is derived deterministically:
+\begin{equation}
+E = \frac{\text{Portion}(\text{g}) \times \text{kcal}_{100\text{g}}}{100}
+\label{eq:calorie_point}
+\end{equation}
+Because portions and preparation techniques contain intrinsic real-world variances, DietSense computes a dynamic margin of error $\Delta E$:
+\begin{equation}
+\Delta E = E \times \left( \alpha + (1 - C) \cdot \beta \right)
+\label{eq:margin}
+\end{equation}
+\begin{equation}
+\mathcal{I}_{E} = \left[ E - \Delta E, \; E + \Delta E \right]
+\label{eq:interval}
+\end{equation}
+where $C \in [0, 1]$ represents the retrieval-ranking confidence score, $\alpha = 0.08$ reflects baseline biological ingredient variance, and $\beta = 0.35$ represents the uncertainty penalty. When $C=1.0$, the interval is constrained to $\pm 8\%$; as confidence drops to $C=0.6$, the interval widens to $\pm 22\%$.
+
+\subsection{Algorithmic Execution Pipeline}
+Algorithm~\ref{alg:pipeline} details the formal operational flow of DietSense.
+
+\begin{algorithm}[t]
+\caption{DietSense Domain Agent Execution Pipeline}
+\label{alg:pipeline}
+\begin{algorithmic}[1]
+\REQUIRE User query $Q$, User profile $P$, Daily food $\log$ $D$
+\ENSURE Structured response $R$, Updated daily food $\log$ $D'$
+\STATE $Q_{\text{norm}} \leftarrow \text{NormalizeText}(Q)$
+\STATE $\text{intent} \leftarrow \text{ClassifyIntent}(Q_{\text{norm}})$
+\IF{$\text{intent} = \text{``log\_food''}$}
+    \STATE $\mathcal{E} \leftarrow \text{ExtractFoodEntities}(Q_{\text{norm}})$ \COMMENT{Extract food, portion, meal}
+    \FORALL{$e \in \mathcal{E}$}
+        \STATE $\mathcal{C} \leftarrow \text{QueryDatabases}(e.\text{name})$ \COMMENT{TFDA, USDA, Vector DB}
+        \STATE $M_{\text{best}}, C \leftarrow \text{RankCandidates}(\mathcal{C}, e.\text{context})$
+        \IF{$C < 0.80$}
+            \STATE $Q_{\text{clarify}} \leftarrow \text{GenerateClarificationPrompt}(e, \mathcal{C})$
+            \STATE $A_{\text{user}} \leftarrow \textbf{await } \text{PromptUser}(Q_{\text{clarify}})$
+            \STATE $e \leftarrow \text{UpdateEntityWithAnswer}(e, A_{\text{user}})$
+            \STATE $M_{\text{best}}, C \leftarrow \text{RankCandidates}(\text{QueryDatabases}(e.\text{name}), e.\text{context})$
+        \ENDIF
+        \STATE $W_{\text{grams}} \leftarrow \text{EstimatePortionGrams}(e.\text{portion}, M_{\text{best}})$
+        \STATE $E_{\text{point}} \leftarrow (W_{\text{grams}} \times M_{\text{best}}.\text{kcal\_100g}) / 100$
+        \STATE $E_{\text{low}}, E_{\text{high}} \leftarrow \text{ComputeInterval}(E_{\text{point}}, C)$
+        \STATE $D.\text{AddEntry}(M_{\text{best}}, W_{\text{grams}}, E_{\text{point}}, [E_{\text{low}}, E_{\text{high}}])$
+    \ENDFOR
+\ELSIF{$\text{intent} = \text{``analyze''}$}
+    \STATE $E_{\text{daily}} \leftarrow \sum_{i} D.\text{entries}[i].E_{\text{point}}$
+    \STATE $\text{BMR} \leftarrow \text{ComputeBMR}(P.\text{weight}, P.\text{height}, P.\text{age}, P.\text{gender})$
+    \STATE $\text{TDEE} \leftarrow \text{BMR} \times P.\text{activity\_factor}$
+    \STATE $\Delta_{\text{deficit}} \leftarrow E_{\text{daily}} - \text{TDEE}$
+\ENDIF
+\STATE $\mathcal{S}_{\text{flag}} \leftarrow \text{EvaluateSafetyGuardrails}(D, P)$
+\IF{$\mathcal{S}_{\text{flag}} = \text{``DANGER''}$}
+    \STATE $R \leftarrow \text{GenerateSafetyAlert}(D, P)$ \COMMENT{Block extreme restrictions}
+    \RETURN $R, D$
+\ENDIF
+\STATE $R \leftarrow \text{FormatReport}(D, P, \text{intent})$
+\RETURN $R, D$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Proactive Clarification and Safety Guardrails}
+When food descriptors lack crucial details (e.g., ``a bowl of instant noodles''), the clarification loop intercepts the flow before logging. It generates a concise, closed-ended query asking for specific preparation parameters (e.g., soup consumption, brand, added egg). 
+
+For safety governance, the agent evaluates all cumulative logs against clinical guidelines:
+\begin{itemize}
+    \item \textbf{Caloric Floor Enforcement:} If total daily intake or a proposed dietary restriction falls below $1,200$~kcal/day, the system enters a `DANGER' state, halts further restriction recommendations, and displays clinical warnings regarding metabolic deceleration.
+    \item \textbf{Eating Disorder Heuristic:} If the longitudinal pattern displays cycles of overeating ($>150\%$ TDEE) followed by severe compensation ($<500$~kcal/day), the agent flags potential disordered eating patterns and suggests consulting a registered dietitian.
+    \item \textbf{Vulnerable Population Guard:} Special cohorts (pregnant women, renal patients) trigger mandatory disclaimers barring prescriptive meal planning.
+\end{itemize}
+
+\section{Experimental Design and Evaluation}
+
+\subsection{Benchmark Dataset Construction}
+To validate performance in regional settings, we establish an annotated benchmark of 500 Taiwanese food items across five representative categories:
+\begin{enumerate}
+    \item \textbf{Night-Market Snacks (100 items):} Fried chicken cutlets, oyster omelets, stinky tofu, takoyaki, sweet potato balls.
+    \item \textbf{Traditional Bento Boxes (100 items):} Pork chop lunchboxes, chicken leg rice, braised pork rice combos.
+    \item \textbf{Noodle Soups and Broths (100 items):} Braised beef noodles, Danzai noodles, squid thick soup.
+    \item \textbf{Customized Beverages (100 items):} Pearl milk tea with varying sweetness and ice levels, taro fresh milk.
+    \item \textbf{Home-Cooked Composite Dishes (100 items):} Tomato scrambled eggs, stir-fried cabbage with bacon, three-cup chicken.
+\end{enumerate}
+Each entry is paired with dual ground-truth annotations: standardized chemical laboratory analyses from TFDA and professional nutritionist culinary breakdowns.
+
+\subsection{User Study Methodology}
+The human evaluation protocol enrolls 20 adult participants ($10$ male, $10$ female; age $24 \pm 5$ years; BMI $23.8 \pm 3.2~\text{kg/m}^2$) over a consecutive 7-day monitoring window. A within-subject crossover design is employed:
+\begin{itemize}
+    \item \textbf{Phase A (Days 1--3):} Traditional manual logging via MyFitnessPal.
+    \item \textbf{Phase B (Days 4--7):} Conversational logging via DietSense.
+\end{itemize}
+Logging latency per meal is instrumented automatically via software timestamp tracking. Task completion rates, clarification efficiency, and drop-off occurrences are recorded continuously.
+
+\subsection{Evaluation Metrics and Target Outcomes}
+System efficacy is quantified across four dimensions:
+\begin{enumerate}
+    \item \textbf{Caloric Accuracy Margin:} The percentage of logged items falling within $\pm 10\%$ and $\pm 20\%$ of laboratory ground truth:
+    \begin{equation}
+    \text{Acc}_{\pm 20\%} = \frac{1}{N} \sum_{i=1}^N \mathbf{1}\left( \frac{|\hat{E}_i - E_i^*|}{E_i^*} \le 0.20 \right)
+    \label{eq:acc}
+    \end{equation}
+    Target performance anticipates $\text{Acc}_{\pm 20\%} > 85\%$.
+    \item \textbf{Interaction Latency:} Total active duration (in seconds) required to record a composite meal. DietSense targets a $60\%$ reduction relative to manual search.
+    \item \textbf{Usability and Subjective Burden:} Measured post-study via the System Usability Scale (SUS) \cite{brooke1996sus}. The target threshold is set to $\text{SUS} > 70$ (indicating `Good' to `Excellent' usability).
+    \item \textbf{Safety Interception Rate:} Evaluated through 50 adversarial prompts attempting to elicit $<800$~kcal/day diet plans; target compliance is $100\%$ interception.
+\end{enumerate}
+
+\section{Conclusion and Future Work}
+This paper presented the conceptual foundation, formal architecture, and rigorous evaluation plan for DietSense, a domain-specific AI agent engineered for dietary tracking and personalized weight management. By enforcing a strict division of responsibilities---wherein an LLM planner governs natural conversational dialogue while deterministic domain tools handle database queries, metabolic formulas, and safety boundaries---DietSense eliminates the hallucination vulnerabilities common in general-purpose models. The integration of local culinary vector indexes, dynamic uncertainty quantification intervals, and proactive clarification loops addresses the primary friction points of traditional dietary monitoring. Future work will incorporate computer vision for auxiliary meal verification and integrate wearable IoT sensors (such as continuous glucose monitors) to refine personalized metabolic response modeling.
+
+\section*{Acknowledgment}
+The authors thank the Ministry of Health and Welfare and the Taiwan Food and Drug Administration for maintaining open nutritional databases, as well as the student participants involved in benchmark validation.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

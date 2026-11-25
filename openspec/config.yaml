@@ -1,0 +1,26 @@
+schema: spec-driven
+
+context: |
+  Language: zh-TW
+  All artifacts must be written in zh-TW.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  
+  專案背景：
+  DIC3 Project Refactor (DietSense: A Data-Grounded and Safety-Aware Conversational AI Agent for Personalized Dietary Assessment and Weight Management)。
+  本專案定位為 Domain AI Agent（領域智慧代理人），結合：
+  AI Agent + Domain Knowledge + Data Analytics + Real-World Application。
+  核心架構原則為「LLM 負責意圖協調與規劃，領域專用工具負責數值計算與資料檢索，領域安全規則負責健康守門」。
+  嚴格遵守學術誠信：未完成實證之數值均標示為 Expected Outcomes，不捏造實驗結果。
+
+rules:
+  proposal:
+    - 清楚陳述研究動機（Attention Getter）、現存瓶頸（But）、提出的解藥（Cure）、發展方法（Development）、評估規劃（Experiments）與預期產出（Findings）。
+    - 嚴禁將未經實證之數值陳述為已驗證成果。
+  specs:
+    - 使用可測試的 SHALL / MUST 需求規範與 WHEN / THEN 情境測試驗證標準。
+    - 嚴格分離自然語言解析、資料庫錨定檢索、數值計算引擎與安全防護邊界。
+  design:
+    - 必須包含八大模組架構、泳道流程圖（含 Clarification Loop）、帶行號之虛擬碼（Pseudocode）、不確定性量化公式（Uncertainty Quantification）與安全防護機制。
+    - 詳列資料來源（USDA、衛福部台灣食品成分資料庫、台式小吃向量庫）與資料隱私保護規範。
+  tasks:
+    - 將實作與重構拆解為小顆粒度、可獨立驗證之任務清單。
